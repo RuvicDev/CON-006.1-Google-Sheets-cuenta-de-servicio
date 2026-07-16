@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conector Google Sheets Workspace — Ruvic</title>
+  <link rel="stylesheet" href="assets/ruvic.css">
+</head>
+<body class="guide">
+  <main class="ruvic-container">
+
+    <nav class="ruvic-toc" aria-label="Índice">
+      <h2>Contenido</h2>
+      <ol>
+        <li><a href="#que-es">¿Qué es y para qué sirve?</a></li>
+        <li><a href="#prerrequisitos">Prerrequisitos</a></li>
+        <li><a href="#configuracion-fabricante">Configuración en el fabricante</a></li>
+        <li><a href="#permisos">Permisos requeridos</a></li>
+        <li><a href="#configuracion-ruvic">Configuración en Ruvic</a></li>
+        <li><a href="#verificacion">Verificación</a></li>
+        <li><a href="#solucion-problemas">Solución de problemas</a></li>
+        <li><a href="#faq-seguridad">Preguntas frecuentes y notas de seguridad</a></li>
+      </ol>
+    </nav>
+
+    <h1>Google Sheets Workspace</h1>
+    <p class="guide-updated">{{ULTIMA_ACTUALIZACION}}</p>
+
+    <!-- ============ 1. QUÉ ES ============ -->
+    <section>
+      <h2 id="que-es">¿Qué es y para qué sirve?</h2>
+
+      <p>El conector Google Sheets Workspace permite que el agente de Ruvic lea y actualice hojas de cálculo accesibles por <strong>uno o varios usuarios</strong> de tu dominio Google Workspace, usando una sola credencial administrada centralizadamente por tu equipo de TI — sin que cada usuario tenga que autorizar su propio acceso por separado. Una vez configurado, puedes pedirle al agente cosas como:</p>
+      <ul>
+        <li>"Lee la hoja de inventario de facturación y dime qué productos tienen menos de 10 unidades."</li>
+        <li>"Agrega una fila nueva a la hoja de soporte con los datos de este ticket."</li>
+        <li>"Actualiza el estado del pedido en la hoja de cobranzas."</li>
+      </ul>
+      <p>Operaciones soportadas:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Operación</th>
+            <th>Qué hace</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>sheets.read</code></td>
+            <td>Lee los valores de un rango de una hoja</td>
+          </tr>
+          <tr>
+            <td><code>sheets.update</code></td>
+            <td>Escribe/sobrescribe valores en un rango existente</td>
+          </tr>
+          <tr>
+            <td><code>sheets.append</code></td>
+            <td>Agrega filas nuevas al final de una tabla de datos</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warning">
+        <span class="callout-title">Solo para Google Workspace</span>
+        Este conector usa <strong>delegación de dominio</strong>, una función exclusiva de Google Workspace. No funciona con cuentas de Google personales (@gmail.com) — para esas usa el conector "Google Sheets" (OAuth2).
+      </div>
+    </section>
+
+    <!-- ============ 2. PRERREQUISITOS ============ -->
+    <section>
+      <h2 id="prerrequisitos">Prerrequisitos</h2>
+
+      <ul>
+        <li>Una organización con <strong>Google Workspace</strong> (no funciona con cuentas personales @gmail.com).</li>
+        <li>Acceso de <strong>superadministrador de Google Workspace</strong> — es la única persona que puede autorizar la delegación de dominio (paso único, sección 3).</li>
+        <li>Acceso al <strong>Google Cloud Console</strong> del mismo dominio, con permisos para crear un proyecto y una cuenta de servicio.</li>
+        <li>El <strong>ID de la hoja de cálculo</strong> a usar (de su URL) para las pruebas iniciales, accesible por el usuario de prueba.</li>
+      </ul>
+
+      <div class="callout callout-info">
+        <span class="callout-title">¿Ya configuraste Gmail o Drive Workspace?</span>
+        Puedes reutilizar la misma cuenta de servicio de esos conectores en lugar de crear una nueva — solo hay que agregar el scope de Sheets a la misma entrada de delegación en el Admin Console.
+      </div>
+    </section>
+
+    <!-- ============ 3. CONFIGURACIÓN EN EL FABRICANTE ============ -->
+    <section>
+      <h2 id="configuracion-fabricante">Configuración en el fabricante</h2>
+
+      <p>Vas a crear una <strong>cuenta de servicio</strong> en Google Cloud y autorizarla mediante <strong>delegación de dominio</strong> para que pueda actuar en nombre de cualquier usuario autorizado. Esto se hace <strong>una sola vez por dominio</strong> — después, agregar un usuario nuevo no requiere repetir estos pasos, solo compartírselo al agente por su correo.</p>
+
+      <ol class="ruvic-steps">
+        <li>
+          <strong>Crea (o selecciona) un proyecto en Google Cloud Console.</strong>
+          <p>Ve a <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com/projectcreate</a> y crea un proyecto (o reutiliza uno existente del mismo dominio).</p>
+        </li>
+
+        <li>
+          <strong>Habilita la Google Sheets API.</strong>
+          <p>En el menú <em>APIs y servicios → Biblioteca</em>, busca "Google Sheets API" y pulsa <em>Habilitar</em>.</p>
+        </li>
+
+        <li>
+          <strong>Crea la cuenta de servicio (o reutiliza la de Gmail/Drive Workspace).</strong>
+          <p>En <em>IAM y administración → Cuentas de servicio → Crear cuenta de servicio</em>. Dale un nombre (ej. <code>ruvic-sheets-workspace</code>) y termina el asistente sin asignar roles adicionales de proyecto.</p>
+        </li>
+
+        <li>
+          <strong>Genera y descarga la clave JSON.</strong>
+          <p>Abre la cuenta de servicio → pestaña <em>Claves</em> → <em>Agregar clave → Crear clave nueva → JSON</em>. Se descargará un archivo <code>.json</code>: guárdalo, lo usarás en el formulario de Ruvic.</p>
+          <div class="screenshot-placeholder">
+            [ Captura: pestaña Claves de la cuenta de servicio con el botón "Agregar clave" — reemplazar por assets/img/sheets-workspace-sa-key.png ]
+          </div>
+        </li>
+
+        <li>
+          <strong>Anota el ID de cliente único de la cuenta de servicio.</strong>
+          <p>En la pestaña <em>Detalles</em> de la cuenta de servicio, copia el <strong>ID de cliente único</strong> (una cadena numérica larga). Lo necesitarás en el siguiente paso.</p>
+        </li>
+
+        <li>
+          <strong>El superadministrador autoriza la delegación de dominio (paso crítico).</strong>
+          <p>Este paso <strong>solo lo puede hacer el superadministrador</strong> de tu organización de Google Workspace. Ve a <a href="https://admin.google.com/ac/owl/domainwidedelegation" target="_blank" rel="noopener">admin.google.com → Seguridad → Control de acceso a las API → Delegación en todo el dominio</a>. Si el Client ID ya está agregado (ej. por Gmail o Drive Workspace), edítalo y agrega el scope de Sheets; si no, pulsa <em>Agregar nuevo</em> e ingresa:</p>
+          <ul>
+            <li><strong>ID de cliente:</strong> el ID de cliente único copiado en el paso anterior.</li>
+            <li><strong>Alcances OAuth</strong>:
+<pre><code>https://www.googleapis.com/auth/spreadsheets</code></pre>
+            </li>
+          </ul>
+          <p>Guarda. Sin este paso, cualquier intento de conexión falla con el error <code>unauthorized_client</code>.</p>
+          <div class="screenshot-placeholder">
+            [ Captura: pantalla de delegación en todo el dominio con el ID de cliente y los scopes — reemplazar por assets/img/sheets-workspace-domain-delegation.png ]
+          </div>
+        </li>
+
+        <li>
+          <strong>Define qué usuario usarás para la prueba inicial y comparte una hoja con él.</strong>
+          <p>Anota el correo de un usuario del dominio (ej. <code>facturacion@tuempresa.com</code>) para el formulario de Ruvic, y asegúrate de que tenga acceso a una hoja de cálculo de prueba (propia o compartida como Editor).</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ 4. PERMISOS ============ -->
+    <section>
+      <h2 id="permisos">Permisos requeridos</h2>
+
+      <p>Principio de mínimo privilegio: la cuenta de servicio solo necesita este scope de Sheets. No autorices scopes de Drive completo ni de otras APIs de Workspace.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th>Para qué lo usa el conector</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>spreadsheets</code></td>
+            <td>Leer (<code>sheets.read</code>) y escribir (<code>sheets.update</code>, <code>sheets.append</code>) valores en hojas de cálculo accesibles por el usuario impersonado</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warning">
+        <span class="callout-title">La delegación aplica a TODO el dominio</span>
+        A diferencia de OAuth2 por usuario, este scope no se limita a un usuario — la cuenta de servicio puede impersonar a <strong>cualquier</strong> usuario del dominio con ese permiso, incluidos los que se creen en el futuro. No hay forma de restringirlo a una lista específica de usuarios desde el Admin Console. El conector <strong>no</strong> solicita el scope completo de Drive: no puede crear, mover, eliminar ni cambiar permisos de archivos.
+      </div>
+    </section>
+
+    <!-- ============ 5. CONFIGURACIÓN EN RUVIC ============ -->
+    <section>
+      <h2 id="configuracion-ruvic">Configuración en Ruvic</h2>
+
+      <p>Entra a <strong>Settings → Conectores</strong>, busca la tarjeta <strong>Google Sheets (Google Workspace — cuenta de servicio)</strong> y pulsa <strong>Configurar</strong>. Diligencia el formulario con los valores que obtuviste en la sección anterior:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Campo del formulario</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>JSON de la cuenta de servicio</td>
+            <td>Abre el archivo <code>.json</code> descargado en el paso 4 y pega <strong>todo</strong> su contenido</td>
+          </tr>
+          <tr>
+            <td>Usuario de prueba</td>
+            <td>El correo definido en el paso 7 (ej. <code>facturacion@tuempresa.com</code>)</td>
+          </tr>
+          <tr>
+            <td>Timeout de solicitud</td>
+            <td>Opcional; <code>30</code> segundos por defecto</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Guarda y pulsa <span class="ruvic-button">Probar conexión</span> — la plataforma se conectará a Sheets API impersonando al usuario de prueba y confirmará que la delegación de dominio funciona.</p>
+
+      <div class="screenshot-placeholder">
+        [ Captura: formulario del conector Google Sheets Workspace en Settings → Conectores — reemplazar por assets/img/sheets-workspace-form.png ]
+      </div>
+    </section>
+
+    <!-- ============ 6. VERIFICACIÓN ============ -->
+    <section>
+      <h2 id="verificacion">Verificación</h2>
+
+      <ol class="ruvic-steps">
+        <li>
+          <strong>Test de conexión exitoso.</strong>
+          <p>El botón <em>Probar conexión</em> debe responder: <em>"Conexión exitosa como facturacion@tuempresa.com (delegación de dominio)"</em>. La tarjeta del conector cambia a estado <strong>Configurado</strong>.</p>
+        </li>
+        <li>
+          <strong>Automatización mínima de prueba, incluido un segundo usuario.</strong>
+          <p>Comparte una hoja de prueba con el usuario de prueba, abre una conversación nueva con el agente y pídele:</p>
+          <blockquote><em>"Lee las primeras 10 filas de la hoja [pega la URL o el ID] y resúmelas."</em></blockquote>
+          <p>Luego prueba con otro usuario del dominio distinto al de la prueba inicial — si el agente responde con datos reales de ambos sin pedir nueva configuración, la delegación de dominio quedó operativa de punta a punta.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ 7. SOLUCIÓN DE PROBLEMAS ============ -->
+    <section>
+      <h2 id="solucion-problemas">Solución de problemas</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Mensaje / síntoma</th>
+            <th>Causa probable y solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>"unauthorized_client" al probar la conexión</td>
+            <td>El error más común. El conector te dirá exactamente qué revisar: 1) que el Client ID esté agregado en el Admin Console (paso 6 de la sección anterior), 2) que los scopes incluyan exactamente <code>https://www.googleapis.com/auth/spreadsheets</code>, 3) que el usuario de prueba pertenezca al mismo dominio Workspace. Solo el superadministrador puede corregir el punto 1.</td>
+          </tr>
+          <tr>
+            <td>"La Google Sheets API no está habilitada en el proyecto de Google Cloud…"</td>
+            <td>Falta habilitar la Google Sheets API en el proyecto (paso 2 de la sección anterior). El mensaje del conector incluye el enlace directo de activación; habilítala y espera 1-2 minutos.</td>
+          </tr>
+          <tr>
+            <td>"…no contiene un JSON válido"</td>
+            <td>Se pegó un fragmento del archivo o se modificó el contenido. Vuelve a abrir el <code>.json</code> descargado y pega todo su contenido, sin editarlo.</td>
+          </tr>
+          <tr>
+            <td>"La hoja de cálculo o el rango solicitado no existe, o el usuario impersonado no tiene acceso"</td>
+            <td>La hoja no fue compartida con el usuario impersonado, o el <code>spreadsheet_id</code>/rango tiene un error de tipeo.</td>
+          </tr>
+          <tr>
+            <td>"Sheets API no respondió correctamente (HTTP 429)"</td>
+            <td>Límite de cuota temporal de la API (Sheets tiene límites por minuto más estrictos que otras APIs de Google). Es transitorio; el agente puede reintentar en unos segundos.</td>
+          </tr>
+          <tr>
+            <td>El conector aparece "Sin configurar" tras guardar</td>
+            <td>Algún campo obligatorio quedó vacío. Ábrelo de nuevo y completa el JSON de la cuenta de servicio y el usuario de prueba.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============ 8. FAQ Y SEGURIDAD ============ -->
+    <section>
+      <h2 id="faq-seguridad">Preguntas frecuentes y notas de seguridad</h2>
+
+      <h3>¿El agente puede leer o modificar cualquier hoja de cálculo del dominio?</h3>
+      <p>Solo las hojas a las que el usuario impersonado tenga acceso (propias o compartidas con él) — no todas las del dominio. Como la delegación cubre todo el dominio, la cuenta de servicio puede impersonar a cualquier usuario autorizado, así que en la práctica el alcance depende de qué usuarios uses en el código, no de un límite técnico adicional.</p>
+
+      <h3>¿El agente puede crear o eliminar hojas de cálculo?</h3>
+      <p>No. El conector solo lee y escribe valores dentro de hojas existentes (<code>sheets.read</code>, <code>sheets.update</code>, <code>sheets.append</code>). No crea archivos nuevos, no elimina pestañas ni cambia permisos.</p>
+
+      <h3>¿Puedo usar la misma cuenta de servicio que Gmail o Drive Workspace?</h3>
+      <p>Sí. Una cuenta de servicio puede tener varios scopes autorizados a la vez en la misma entrada de delegación del Admin Console. Solo agrega <code>https://www.googleapis.com/auth/spreadsheets</code> a la lista de scopes existente, separado por coma, sin espacios extra.</p>
+
+      <h3>Rotación de credenciales</h3>
+      <p>Recomendado cada 90 días o según tu política: genera una nueva clave JSON en Google Cloud Console, actualízala en el formulario del conector, prueba la conexión, y luego elimina la clave anterior. La delegación de dominio no cambia — sigue asociada al mismo Client ID.</p>
+
+      <h3>¿Qué hago si el JSON se compromete?</h3>
+      <ol>
+        <li>El superadministrador elimina o edita la entrada de delegación en el Admin Console (Seguridad → Delegación en todo el dominio) — esto revoca el acceso de inmediato.</li>
+        <li>Elimina la clave comprometida en Google Cloud Console (IAM y administración → Cuentas de servicio → Claves).</li>
+        <li>Genera una nueva clave, vuelve a autorizar la delegación con el mismo Client ID, y actualiza el formulario del conector.</li>
+      </ol>
+
+      <div class="callout callout-warning">
+        <span class="callout-title">Buenas prácticas</span>
+        Usa una cuenta de servicio dedicada (o compartida solo con Gmail/Drive Workspace); autoriza únicamente el scope mínimo; nunca compartas el JSON por canales no seguros; y revisa periódicamente en el Admin Console qué Client IDs tienen delegación de dominio activa en tu organización y con qué scopes.
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>
