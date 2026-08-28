@@ -261,6 +261,12 @@ class SheetsWorkspaceClient:
                 .get(spreadsheetId=spreadsheet_id, range=range_name)
                 .execute(num_retries=1)
             )
+        except (RefreshError, GoogleAuthError) as exc:
+            raise SheetsWorkspaceAuthError(
+                f"No se pudo autenticar: el token OAuth/credenciales pueden "
+                f"estar revocados, vencidos o ser inválidos. Vuelve a "
+                f"autorizar el conector. Detalle: {exc}"
+            ) from exc
         except HttpError as exc:
             raise _wrap_http_error(exc) from exc
         values = result.get("values", [])
@@ -312,6 +318,12 @@ class SheetsWorkspaceClient:
                 )
                 .execute(num_retries=1)
             )
+        except (RefreshError, GoogleAuthError) as exc:
+            raise SheetsWorkspaceAuthError(
+                f"No se pudo autenticar: el token OAuth/credenciales pueden "
+                f"estar revocados, vencidos o ser inválidos. Vuelve a "
+                f"autorizar el conector. Detalle: {exc}"
+            ) from exc
         except HttpError as exc:
             raise _wrap_http_error(exc) from exc
         self._logger.info(
@@ -367,6 +379,12 @@ class SheetsWorkspaceClient:
                 )
                 .execute(num_retries=1)
             )
+        except (RefreshError, GoogleAuthError) as exc:
+            raise SheetsWorkspaceAuthError(
+                f"No se pudo autenticar: el token OAuth/credenciales pueden "
+                f"estar revocados, vencidos o ser inválidos. Vuelve a "
+                f"autorizar el conector. Detalle: {exc}"
+            ) from exc
         except HttpError as exc:
             raise _wrap_http_error(exc) from exc
         updates = result.get("updates", {})
