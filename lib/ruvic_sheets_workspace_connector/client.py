@@ -40,6 +40,7 @@ from .logging_utils import get_logger
 
 _SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_VALID_VALUE_INPUT_OPTIONS = {"USER_ENTERED", "RAW"}
 
 
 def _service_disabled_info(exc: HttpError) -> tuple[str, str] | None:
@@ -98,6 +99,10 @@ def _wrap_http_error(exc: HttpError) -> SheetsWorkspaceConnectorError:
 
 
 def _validate_spreadsheet_id(spreadsheet_id: str) -> str:
+    if not isinstance(spreadsheet_id, str):
+        raise SheetsWorkspaceDataError(
+            f"spreadsheet_id debe ser un string, no {type(spreadsheet_id).__name__}."
+        )
     spreadsheet_id = spreadsheet_id.strip()
     if not spreadsheet_id:
         raise SheetsWorkspaceDataError("spreadsheet_id no puede estar vacío.")
@@ -105,12 +110,25 @@ def _validate_spreadsheet_id(spreadsheet_id: str) -> str:
 
 
 def _validate_range(range_name: str) -> str:
+    if not isinstance(range_name, str):
+        raise SheetsWorkspaceDataError(
+            f"range debe ser un string, no {type(range_name).__name__}."
+        )
     range_name = range_name.strip()
     if not range_name:
         raise SheetsWorkspaceDataError(
             "range no puede estar vacío (ej. 'Hoja1!A1:D20' o 'Hoja1')."
         )
     return range_name
+
+
+def _validate_value_input_option(value_input_option: str) -> str:
+    if value_input_option not in _VALID_VALUE_INPUT_OPTIONS:
+        raise SheetsWorkspaceDataError(
+            f"value_input_option={value_input_option!r} inválido. "
+            f"Valores permitidos: {sorted(_VALID_VALUE_INPUT_OPTIONS)}."
+        )
+    return value_input_option
 
 
 class SheetsWorkspaceClient:
@@ -280,6 +298,7 @@ class SheetsWorkspaceClient:
         """
         spreadsheet_id = _validate_spreadsheet_id(spreadsheet_id)
         range_name = _validate_range(range_name)
+        value_input_option = _validate_value_input_option(value_input_option)
         service = self._get_service()
         try:
             result = (
@@ -333,6 +352,7 @@ class SheetsWorkspaceClient:
         """
         spreadsheet_id = _validate_spreadsheet_id(spreadsheet_id)
         range_name = _validate_range(range_name)
+        value_input_option = _validate_value_input_option(value_input_option)
         service = self._get_service()
         try:
             result = (
